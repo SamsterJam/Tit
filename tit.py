@@ -108,6 +108,42 @@ def commit_session(message):
     save_data(committed_data, committed_file)
     print(colored(f"Session committed with message: {message}", 'green', attrs=['bold']))
 
+def reset_sessions():
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    _, uncommitted_file = get_project_paths(project)
+    uncommitted_data = load_data(uncommitted_file)
+    if not uncommitted_data:
+        print(colored("No uncommitted sessions to reset.", 'yellow'))
+        return
+
+    # List uncommitted sessions
+    print(colored("Uncommitted sessions:", 'yellow'))
+    for session in uncommitted_data:
+        start = session.get('start')
+        end = session.get('end', 'In Progress')
+        start_time = datetime.fromisoformat(start)
+        if end == 'In Progress':
+            duration = datetime.now() - start_time
+        else:
+            end_time = datetime.fromisoformat(end)
+            duration = end_time - start_time
+        duration_str = str(duration).split('.')[0]  # Remove microseconds
+        print(colored(f"  - Start: {format_display_datetime(start_time)}, Duration: {duration_str}", 'red'))
+
+    # Prompt for confirmation
+    confirm = input(colored("Are you sure you want to discard these sessions? [y/N]: ", 'yellow')).strip().lower()
+    if confirm not in ['y', 'yes']:
+        print(colored("Reset aborted.", 'green'))
+        return
+
+    # Reset uncommitted sessions
+    save_data([], uncommitted_file)
+    print(colored("Uncommitted sessions have been discarded.", 'green'))
+
 def log_sessions(show_all=False):
     project = get_current_project()
     if not project:
@@ -271,6 +307,8 @@ def main():
 
     subparsers.add_parser('status', help='Show the current status of the project')
 
+    reset_parser = subparsers.add_parser('reset', help='Discard uncommitted sessions')
+
     init_parser = subparsers.add_parser('init', help='Initialize a new project')
     init_parser.add_argument('project', help='Name of the project to initialize')
 
@@ -306,6 +344,8 @@ def main():
         checkout_project(args.project)
     elif args.command == 'delete':
         delete_project(args.project)
+    elif args.command == 'reset':
+       reset_sessions()
     else:
         parser.print_help()
 
