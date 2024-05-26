@@ -11,6 +11,12 @@
 - **Log Sessions**: View a log of all committed and uncommitted sessions.
 - **Project Management**: Initialize, list, switch, and delete projects.
 
+## To-Do List
+
+- [ ] Add export functionality to CSV and JSON formats
+- [ ] Add ability to reset, remove, or edit commits
+- [ ] Improve error handling and user feedback
+
 ## Installation
 
 1. **Clone the repository:**
