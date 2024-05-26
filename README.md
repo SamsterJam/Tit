@@ -14,7 +14,11 @@
 ## To-Do List
 
 - [ ] Add export functionality to CSV and JSON formats
-- [x] Add ability to reset, remove, or edit commits
+- [x] Add rest command to discard staged commits
+- [x] Add remove command to non-destructively remove commits
+- [x] Add purge command destructively delete commits
+- [x] Add edit command edit commits
+- [ ] Add info command to give condensed info
 - [ ] Improve error handling and user feedback
 
 ## Installation

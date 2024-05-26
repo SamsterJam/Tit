@@ -536,7 +536,7 @@ def main():
     rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
     rm_parser.add_argument('commit_hash', help='Hash of the commit to remove')
 
-    purge_parser = subparsers.add_parser('purge', help='purge a commit (destructive)')
+    purge_parser = subparsers.add_parser('purge', help='Purge a commit (destructive)')
     purge_parser.add_argument('commit_hash', help='Hash of the commit to purge')
 
     edit_parser = subparsers.add_parser('edit', help='Edit a specific commit')
