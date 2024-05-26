@@ -1,6 +1,6 @@
-# tit - Time Tracker CLI
+# Tit - Time Tracker CLI
 
-**tit** is a simple command-line tool to track and manage your project time sessions. Inspired by `git`, it helps you start, stop, commit, and log your time sessions efficiently.
+**Tit** is a simple command-line tool to track and manage your project time sessions. Inspired by `git`, it helps you start, stop, commit, and log your time sessions efficiently.
 
 ![Tit Icon](Tit.png)
 
