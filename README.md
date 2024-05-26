@@ -18,6 +18,7 @@
 - [x] Add remove command to non-destructively remove commits
 - [x] Add purge command destructively delete commits
 - [x] Add edit command edit commits
+- [x] Add time command to return total project time
 - [ ] Add info command to give condensed info
 - [ ] Improve error handling and user feedback
 

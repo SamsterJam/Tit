@@ -5,7 +5,7 @@ import os
 import hashlib
 import tempfile
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 from colorama import init, Fore, Style
 from termcolor import colored
 
@@ -126,6 +126,53 @@ def commit_session(message):
     save_data([], uncommitted_file)
     save_data(committed_data, committed_file)
     print(colored(f"Session committed with message: {message}", 'green', attrs=['bold']))
+
+def show_total_time():
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, uncommitted_file = get_project_paths(project)
+    deleted_file = get_deleted_sessions_file(project)
+    committed_data = load_data(committed_file)
+    uncommitted_data = load_data(uncommitted_file)
+    deleted_data = load_data(deleted_file)
+
+    total_committed_duration = timedelta()
+    total_uncommitted_duration = timedelta()
+
+    for commit in committed_data:
+        if commit in deleted_data:
+            continue
+        sessions = commit.get('sessions', [])
+        for session in sessions:
+            start = datetime.fromisoformat(session.get('start'))
+            end = datetime.fromisoformat(session.get('end'))
+            total_committed_duration += (end - start)
+
+    for session in uncommitted_data:
+        start = datetime.fromisoformat(session.get('start'))
+        end = session.get('end')
+        if end is None or end == 'In Progress':
+            end = datetime.now()
+        else:
+            end = datetime.fromisoformat(end)
+        total_uncommitted_duration += (end - start)
+
+    total_committed_duration_str = str(total_committed_duration).split('.')[0]  # Remove microseconds
+
+    if total_uncommitted_duration > timedelta():
+        print(colored(f"Committed: {total_committed_duration_str}", 'green'))
+        total_uncommitted_duration_str = str(total_uncommitted_duration).split('.')[0]  # Remove microseconds
+        print(colored(f"Uncommitted: {total_uncommitted_duration_str}", 'yellow'))
+
+        total_duration = total_committed_duration + total_uncommitted_duration
+        total_duration_str = str(total_duration).split('.')[0]  # Remove microseconds
+        print(colored("---------------------", 'blue'))
+        print(colored(f"Total: {total_duration_str}", 'blue', attrs=['bold']))
+    else:
+        print(colored(f"Total: {total_committed_duration_str}", 'green', attrs=['bold']))
 
 def reset_sessions():
     project = get_current_project()
@@ -518,6 +565,8 @@ def main():
     log_parser = subparsers.add_parser('log', help='Show log of all sessions', aliases=['l'])
     log_parser.add_argument('-a', '--all', action='store_true', help='Show all sessions including uncommitted ones')
 
+    time_parser = subparsers.add_parser('time', help='Show total time from all committed, non-deleted commits')
+
     subparsers.add_parser('status', help='Show the current status of the project')
 
     reset_parser = subparsers.add_parser('reset', help='Discard uncommitted sessions')
@@ -558,6 +607,8 @@ def main():
         log_sessions(args.all)
     elif args.command == 'status':
         status()
+    elif args.command == 'time':
+        show_total_time()
     elif args.command == 'init':
         init_project(args.project)
     elif args.command == 'projects':
