@@ -279,13 +279,13 @@ def remove_commit(commit_hash):
             break
 
     if not commit_to_remove:
-        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
-        return
+        # Check if the commit is already in the deleted sessions
+        for commit in deleted_data:
+            if commit.get('hash') == commit_hash:
+                purge_commit(commit_hash)
+                return
 
-    # Prompt for confirmation
-    confirm = input(colored(f"Are you sure you want to delete commit '{commit_hash}'? [y/N]: ", 'yellow')).strip().lower()
-    if confirm not in ['y', 'yes']:
-        print(colored("Deletion aborted.", 'green'))
+        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
         return
 
     # Move the commit to deleted sessions
@@ -294,6 +294,59 @@ def remove_commit(commit_hash):
     save_data(committed_data, committed_file)
     save_data(deleted_data, deleted_file)
     print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
+    
+def purge_commit(commit_hash):
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, uncommitted_file = get_project_paths(project)
+    deleted_file = get_deleted_sessions_file(project)
+    committed_data = load_data(committed_file)
+    uncommitted_data = load_data(uncommitted_file)
+    deleted_data = load_data(deleted_file)
+
+    commit_to_purge = None
+    source = None
+
+    # Check in committed sessions
+    for commit in committed_data:
+        if commit.get('hash') == commit_hash:
+            commit_to_purge = commit
+            source = 'committed'
+            break
+
+    # Check in deleted sessions
+    if not commit_to_purge:
+        for commit in deleted_data:
+            if commit.get('hash') == commit_hash:
+                commit_to_purge = commit
+                source = 'deleted'
+                break
+
+    if not commit_to_purge:
+        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        return
+
+    # Prompt for confirmation
+    confirm = input(colored(f"Are you sure you want to permanently delete commit '{commit_hash}'? This action cannot be undone. [y/N]: ", 'yellow')).strip().lower()
+    if confirm not in ['y', 'yes']:
+        print(colored("Purge aborted.", 'green'))
+        return
+
+    # Remove the commit from the appropriate source
+    if source == 'committed':
+        committed_data.remove(commit_to_purge)
+        save_data(committed_data, committed_file)
+    elif source == 'uncommitted':
+        uncommitted_data.remove(commit_to_purge)
+        save_data(uncommitted_data, uncommitted_file)
+    elif source == 'deleted':
+        deleted_data.remove(commit_to_purge)
+        save_data(deleted_data, deleted_file)
+
+    print(colored(f"Commit '{commit_hash}' has been permanently deleted.", 'green'))
 
 def init_project(project):
     project_dir = os.path.join(PROJECTS_DIR, project)
@@ -384,6 +437,9 @@ def main():
     rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
     rm_parser.add_argument('commit_hash', help='Hash of the commit to remove')
 
+    purge_parser = subparsers.add_parser('purge', help='purge a commit (destructive)')
+    purge_parser.add_argument('commit_hash', help='Hash of the commit to purge')
+
     args = parser.parse_args()
 
     if args.command in ['start', 's']:
@@ -412,6 +468,8 @@ def main():
        reset_sessions()
     elif args.command == 'rm':
         remove_commit(args.commit_hash)
+    elif args.command == 'purge':
+        purge_commit(args.commit_hash)
     else:
         parser.print_help()
 
