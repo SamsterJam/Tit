@@ -16,7 +16,7 @@
 1. **Clone the repository:**
 
    ```sh
-   git clone https://github.com/yourusername/tit.git
+   git clone https://github.com/SamsterJam/tit.git
    ```
 
 2. **Navigate to the project directory:**
@@ -32,8 +32,13 @@
    ```
 
 4. **(Optional) Add to your PATH:**
+   link it to path:
    ```sh
-   ln -s $(pwd)/tit.py /usr/local/bin/tit
+   sudo ln -s $(pwd)/tit.py /usr/local/bin/tit
+   ```
+   or just move it:
+   ```sh
+   sudo mv tit.py /usr/local/bin/tit
    ```
 
 ## Usage
