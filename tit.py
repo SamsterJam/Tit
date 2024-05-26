@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from colorama import init, Fore, Style
 from termcolor import colored
 from tabulate import tabulate
+import csv
+import re
 
 # Initialize colorama
 init(autoreset=True)
@@ -65,6 +67,10 @@ def format_display_datetime(dt):
 
 def parse_display_datetime(dt_str):
     return datetime.strptime(dt_str, '%Y-%m-%d %I:%M %p')
+
+def strip_ansi_codes(text):
+    ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
 
 def find_editor():
     editors = ['vim', 'nano', 'code', 'notepad']  # List of editors to check
@@ -358,7 +364,7 @@ def remove_commit(commit_hash):
     save_data(deleted_data, deleted_file)
     print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
 
-def export_sessions(show_all=False):
+def export_sessions(show_all=False, format='ascii'):
     project = get_current_project()
     if not project:
         print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
@@ -399,8 +405,20 @@ def export_sessions(show_all=False):
     table_data.append([colored("Total", 'green', attrs=['bold']), colored(total_duration_str, 'green', attrs=['bold']), colored(export_time, 'green', attrs=['bold'])])
 
     headers = ["Message", "Duration", "Date"]
-    table = tabulate(table_data, headers, tablefmt="grid")
-    print(table)
+
+    if format == 'ascii':
+        table = tabulate(table_data, headers, tablefmt="grid")
+        print(table)
+    elif format == 'csv':
+        csv_file = f"{project}_sessions.csv"
+        with open(csv_file, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
+            for row in table_data:
+                writer.writerow([strip_ansi_codes(text) for text in row])
+        print(colored(f"Sessions exported to {csv_file}", 'green'))
+    else:
+        print(colored(f"Error: Unsupported export format '{format}'", 'red'))
 
 def purge_commit(commit_hash):
     project = get_current_project()
@@ -627,8 +645,9 @@ def main():
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project', help='Name of the project to delete')
 
-    export_parser = subparsers.add_parser('export', help='Export all sessions to a nice ASCII table')
+    export_parser = subparsers.add_parser('export', help='Export all sessions to a nice ASCII table or CSV')
     export_parser.add_argument('-a', '--all', action='store_true', help='Export all sessions including uncommitted ones')
+    export_parser.add_argument('format', nargs='?', default='ascii', choices=['ascii', 'csv'], help='Export format (default: ascii)')
 
     rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
     rm_parser.add_argument('commit_hash', help='Hash of the commit to remove')
@@ -674,7 +693,7 @@ def main():
     elif args.command == 'edit':
         edit_commit(args.commit_hash)
     elif args.command == 'export':
-        export_sessions(args.all)
+        export_sessions(args.all, args.format)
     else:
         parser.print_help()
 
