@@ -25,13 +25,19 @@
    cd tit
    ```
 
-3. **Make the script executable:**
+3. **Install dependencies:**
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. **Make the script executable:**
 
    ```sh
    chmod +x tit.py
    ```
 
-4. **(Optional) Add to your PATH:**
+5. **(Optional) Add to your PATH:**
 
    link it to path:
 
