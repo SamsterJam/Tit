@@ -8,6 +8,7 @@ import subprocess
 from datetime import datetime, timedelta
 from colorama import init, Fore, Style
 from termcolor import colored
+from tabulate import tabulate
 
 # Initialize colorama
 init(autoreset=True)
@@ -356,7 +357,51 @@ def remove_commit(commit_hash):
     save_data(committed_data, committed_file)
     save_data(deleted_data, deleted_file)
     print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
-    
+
+def export_sessions(show_all=False):
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, uncommitted_file = get_project_paths(project)
+    committed_data = load_data(committed_file)
+    uncommitted_data = load_data(uncommitted_file)
+
+    table_data = []
+    total_duration = timedelta()
+
+    for commit in committed_data:
+        sessions = commit.get('sessions', [])
+        message = commit.get('message', 'No message')
+        for session in sessions:
+            start = datetime.fromisoformat(session.get('start'))
+            end = datetime.fromisoformat(session.get('end'))
+            duration = end - start
+            total_duration += duration
+            table_data.append([message, str(duration).split('.')[0], format_display_datetime(start)])
+
+    if show_all:
+        for session in uncommitted_data:
+            start = datetime.fromisoformat(session.get('start'))
+            end = session.get('end')
+            if end is None or end == 'In Progress':
+                end = datetime.now()
+            else:
+                end = datetime.fromisoformat(end)
+            duration = end - start
+            total_duration += duration
+            table_data.append([colored("Uncommitted", 'yellow'), colored(str(duration).split('.')[0], 'yellow'), colored(format_display_datetime(start), 'yellow')])
+
+    # Add total row
+    total_duration_str = str(total_duration).split('.')[0]  # Remove microseconds
+    export_time = format_display_datetime(datetime.now())
+    table_data.append([colored("Total", 'green', attrs=['bold']), colored(total_duration_str, 'green', attrs=['bold']), colored(export_time, 'green', attrs=['bold'])])
+
+    headers = ["Message", "Duration", "Date"]
+    table = tabulate(table_data, headers, tablefmt="grid")
+    print(table)
+
 def purge_commit(commit_hash):
     project = get_current_project()
     if not project:
@@ -582,6 +627,9 @@ def main():
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project', help='Name of the project to delete')
 
+    export_parser = subparsers.add_parser('export', help='Export all sessions to a nice ASCII table')
+    export_parser.add_argument('-a', '--all', action='store_true', help='Export all sessions including uncommitted ones')
+
     rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
     rm_parser.add_argument('commit_hash', help='Hash of the commit to remove')
 
@@ -625,6 +673,8 @@ def main():
         purge_commit(args.commit_hash)
     elif args.command == 'edit':
         edit_commit(args.commit_hash)
+    elif args.command == 'export':
+        export_sessions(args.all)
     else:
         parser.print_help()
 
