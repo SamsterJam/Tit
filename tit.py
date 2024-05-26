@@ -47,6 +47,10 @@ def set_current_project(project):
     with open(HEAD_FILE, 'w') as f:
         f.write(project)
 
+def get_deleted_sessions_file(project):
+    project_dir = os.path.join(PROJECTS_DIR, project)
+    return os.path.join(project_dir, 'deleted_sessions.json')
+
 def get_project_paths(project):
     project_dir = os.path.join(PROJECTS_DIR, project)
     committed_file = os.path.join(project_dir, 'committed_sessions.json')
@@ -151,8 +155,10 @@ def log_sessions(show_all=False):
         return
 
     committed_file, uncommitted_file = get_project_paths(project)
+    deleted_file = get_deleted_sessions_file(project)
     committed_data = load_data(committed_file)
     uncommitted_data = load_data(uncommitted_file) if show_all else []
+    deleted_data = load_data(deleted_file) if show_all else []
 
     for commit in committed_data:
         commit_hash = commit.get('hash')
@@ -172,19 +178,40 @@ def log_sessions(show_all=False):
             print(f"      - Start: {format_display_datetime(start_time)}, Duration: {colored(duration_str, attrs=['bold'])}")
         print()
 
-    if show_all and uncommitted_data:
-        print("Uncommitted Sessions:")
-        for session in uncommitted_data:
-            start = session.get('start')
-            end = session.get('end', 'In Progress')
-            start_time = datetime.fromisoformat(start)
-            if end == 'In Progress':
-                duration = datetime.now() - start_time
-            else:
-                end_time = datetime.fromisoformat(end)
-                duration = end_time - start_time
-            duration_str = str(duration).split('.')[0]  # Remove microseconds
-            print(colored(f"  - Start: {format_display_datetime(start_time)}, Duration: {duration_str}", 'red'))
+    if show_all:
+        if uncommitted_data:
+            print("Uncommitted Sessions:")
+            for session in uncommitted_data:
+                start = session.get('start')
+                end = session.get('end', 'In Progress')
+                start_time = datetime.fromisoformat(start)
+                if end == 'In Progress':
+                    duration = datetime.now() - start_time
+                else:
+                    end_time = datetime.fromisoformat(end)
+                    duration = end_time - start_time
+                duration_str = str(duration).split('.')[0]  # Remove microseconds
+                print(colored(f"  - Start: {format_display_datetime(start_time)}, Duration: {duration_str}", 'red'))
+
+        if deleted_data:
+            print("Deleted Sessions:")
+            for commit in deleted_data:
+                commit_hash = commit.get('hash')
+                message = commit.get('message', '')
+                print(f"{Fore.RED}{Style.DIM}[Removed] commit {commit_hash}{Style.RESET_ALL}")
+                print(colored(f"Date: {datetime.now().strftime('%a %b %d %H:%M:%S %Y %z')}\n", 'dark_grey'))
+                print(colored(f"    {message}", 'dark_grey'))
+                sessions = commit.get('sessions', [])
+                print(colored(f"    Sessions ({len(sessions)}):", 'dark_grey'))
+                for session in sessions:
+                    start = session.get('start')
+                    end = session.get('end')
+                    start_time = datetime.fromisoformat(start)
+                    end_time = datetime.fromisoformat(end)
+                    duration = end_time - start_time
+                    duration_str = str(duration).split('.')[0]  # Remove microseconds
+                    print(colored(f"      - Start: {format_display_datetime(start_time)}, Duration: {duration_str}", 'dark_grey'))
+                print()
 
 def status():
     project = get_current_project()
@@ -233,6 +260,40 @@ def status():
                 end_time = datetime.fromisoformat(end)
                 duration = end_time - start_time
             print(colored(f"  - Start: {format_display_datetime(start_time)}, Duration: {str(duration).split('.')[0]}", 'red'))
+
+def remove_commit(commit_hash):
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, _ = get_project_paths(project)
+    deleted_file = get_deleted_sessions_file(project)
+    committed_data = load_data(committed_file)
+    deleted_data = load_data(deleted_file)
+
+    commit_to_remove = None
+    for commit in committed_data:
+        if commit.get('hash') == commit_hash:
+            commit_to_remove = commit
+            break
+
+    if not commit_to_remove:
+        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        return
+
+    # Prompt for confirmation
+    confirm = input(colored(f"Are you sure you want to delete commit '{commit_hash}'? [y/N]: ", 'yellow')).strip().lower()
+    if confirm not in ['y', 'yes']:
+        print(colored("Deletion aborted.", 'green'))
+        return
+
+    # Move the commit to deleted sessions
+    committed_data.remove(commit_to_remove)
+    deleted_data.append(commit_to_remove)
+    save_data(committed_data, committed_file)
+    save_data(deleted_data, deleted_file)
+    print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
 
 def init_project(project):
     project_dir = os.path.join(PROJECTS_DIR, project)
@@ -320,6 +381,9 @@ def main():
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project', help='Name of the project to delete')
 
+    rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
+    rm_parser.add_argument('commit_hash', help='Hash of the commit to remove')
+
     args = parser.parse_args()
 
     if args.command in ['start', 's']:
@@ -346,6 +410,8 @@ def main():
         delete_project(args.project)
     elif args.command == 'reset':
        reset_sessions()
+    elif args.command == 'rm':
+        remove_commit(args.commit_hash)
     else:
         parser.print_help()
 
