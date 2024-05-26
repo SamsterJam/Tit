@@ -3,6 +3,8 @@ import argparse
 import json
 import os
 import hashlib
+import tempfile
+import subprocess
 from datetime import datetime
 from colorama import init, Fore, Style
 from termcolor import colored
@@ -56,6 +58,19 @@ def get_project_paths(project):
     committed_file = os.path.join(project_dir, 'committed_sessions.json')
     uncommitted_file = os.path.join(project_dir, 'uncommitted_sessions.json')
     return committed_file, uncommitted_file
+
+def format_display_datetime(dt):
+    return dt.strftime('%Y-%m-%d %I:%M %p')
+
+def parse_display_datetime(dt_str):
+    return datetime.strptime(dt_str, '%Y-%m-%d %I:%M %p')
+
+def find_editor():
+    editors = ['vim', 'nano', 'code', 'notepad']  # List of editors to check
+    for editor in editors:
+        if subprocess.call(['which', editor], stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0:
+            return editor
+    raise FileNotFoundError("No suitable text editor found. Please install one of the following: vim, nano, code, notepad.")
 
 def start_session():
     project = get_current_project()
@@ -348,6 +363,84 @@ def purge_commit(commit_hash):
 
     print(colored(f"Commit '{commit_hash}' has been permanently deleted.", 'green'))
 
+def edit_commit(commit_hash):
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, _ = get_project_paths(project)
+    committed_data = load_data(committed_file)
+
+    commit_data = None
+    for commit in committed_data:
+        if commit.get('hash') == commit_hash:
+            commit_data = commit
+            break
+
+    if not commit_data:
+        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        return
+
+    sessions = commit_data["sessions"]
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix=".tmp") as temp_file:
+        temp_file_path = temp_file.name
+
+        # Write the sessions to the temporary file
+        for i, session in enumerate(sessions, start=1):
+            start = datetime.fromisoformat(session["start"])
+            end = datetime.fromisoformat(session["end"])
+            temp_file.write(f"[Session {i}]\n")
+            temp_file.write(f"Start-Time: {format_display_datetime(start)}\n")
+            temp_file.write(f"End-Time: {format_display_datetime(end)}\n\n")
+
+    # Find an available text editor
+    try:
+        editor = find_editor()
+    except FileNotFoundError as e:
+        print(colored(str(e), 'red'))
+        return
+
+    # Open the temporary file in the text editor
+    subprocess.call([editor, temp_file_path])
+
+    # Read the edited file
+    with open(temp_file_path, 'r') as temp_file:
+        edited_content = temp_file.read()
+
+    # Parse the edited content
+    edited_sessions = []
+    lines = edited_content.splitlines()
+    try:
+        for i in range(0, len(lines), 4):
+            start_line = lines[i + 1].split("Start-Time: ")[1].strip()
+            end_line = lines[i + 2].split("End-Time: ")[1].strip()
+            edited_sessions.append({
+                "start": parse_display_datetime(start_line).isoformat(),
+                "end": parse_display_datetime(end_line).isoformat()
+            })
+    except (IndexError, ValueError) as e:
+        print(colored("Error: Failed to parse the edited file. Please ensure the format is correct.", 'red'))
+        os.remove(temp_file_path)
+        return
+
+    # Check if there are no sessions left
+    if not edited_sessions:
+        committed_data.remove(commit_data)
+        print(colored(f"Commit '{commit_hash}' has been deleted because no sessions were left.", 'yellow'))
+    else:
+        # Update the commit data
+        commit_data["sessions"] = edited_sessions
+        print(colored(f"Commit '{commit_hash}' has been edited.", 'green'))
+
+    # Save the updated data
+    save_data(committed_data, committed_file)
+
+    # Clean up the temporary file
+    os.remove(temp_file_path)
+
 def init_project(project):
     project_dir = os.path.join(PROJECTS_DIR, project)
     if os.path.exists(project_dir):
@@ -374,6 +467,12 @@ def delete_project(project):
     project_dir = os.path.join(PROJECTS_DIR, project)
     if not os.path.exists(project_dir):
         print(colored(f"Error: Project '{project}' does not exist.", 'red'))
+        return
+
+    # Prompt for confirmation
+    confirm = input(colored(f"Are you sure you want to permanently delete the project '{project}'? This action cannot be undone. [y/N]: ", 'yellow')).strip().lower()
+    if confirm not in ['y', 'yes']:
+        print(colored("Project deletion aborted.", 'green'))
         return
 
     # Delete the project directory and its contents
@@ -440,6 +539,9 @@ def main():
     purge_parser = subparsers.add_parser('purge', help='purge a commit (destructive)')
     purge_parser.add_argument('commit_hash', help='Hash of the commit to purge')
 
+    edit_parser = subparsers.add_parser('edit', help='Edit a specific commit')
+    edit_parser.add_argument('commit_hash', help='Hash of the commit to edit')
+
     args = parser.parse_args()
 
     if args.command in ['start', 's']:
@@ -470,6 +572,8 @@ def main():
         remove_commit(args.commit_hash)
     elif args.command == 'purge':
         purge_commit(args.commit_hash)
+    elif args.command == 'edit':
+        edit_commit(args.commit_hash)
     else:
         parser.print_help()
 

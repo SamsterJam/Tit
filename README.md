@@ -14,7 +14,7 @@
 ## To-Do List
 
 - [ ] Add export functionality to CSV and JSON formats
-- [ ] Add ability to reset, remove, or edit commits
+- [x] Add ability to reset, remove, or edit commits
 - [ ] Improve error handling and user feedback
 
 ## Installation
