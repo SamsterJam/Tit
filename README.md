@@ -15,6 +15,16 @@
 - **Remove and Purge Commits**: Non-destructively remove or destructively purge commits.
 - **Total Time Calculation**: Return total project time.
 
+## To-dos
+
+- [ ] Add message editing to edit command
+- [ ] Add info command for compact info log
+- [x] Add rest command to discard staged commits
+- [x] Add remove command to non-destructively remove commits
+- [x] Add purge command destructively delete commits
+- [x] Add edit command edit commits
+- [x] Add time command to return total project time
+
 ## Installation
 
 1. **Clone the repository:**
