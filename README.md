@@ -10,17 +10,10 @@
 - **Commit Sessions**: Commit your sessions with meaningful messages.
 - **Log Sessions**: View a log of all committed and uncommitted sessions.
 - **Project Management**: Initialize, list, switch, and delete projects.
-
-## To-Do List
-
-- [ ] Add export functionality to CSV and JSON formats
-- [x] Add rest command to discard staged commits
-- [x] Add remove command to non-destructively remove commits
-- [x] Add purge command destructively delete commits
-- [x] Add edit command edit commits
-- [x] Add time command to return total project time
-- [ ] Add info command to give condensed info
-- [ ] Improve error handling and user feedback
+- **Export Sessions**: Export sessions to ASCII table or CSV format.
+- **Edit Commits**: Edit specific commits.
+- **Remove and Purge Commits**: Non-destructively remove or destructively purge commits.
+- **Total Time Calculation**: Return total project time.
 
 ## Installation
 
@@ -118,6 +111,42 @@ tit checkout <project_name>
 tit delete <project_name>
 ```
 
+### Show Total Time from All Committed, Non-Deleted Commits
+
+```sh
+tit time
+```
+
+### Discard Uncommitted Sessions
+
+```sh
+tit reset
+```
+
+### Remove a Specific Commit
+
+```sh
+tit rm <commit_hash>
+```
+
+### Purge a Commit (Destructive)
+
+```sh
+tit purge <commit_hash>
+```
+
+### Edit a Specific Commit
+
+```sh
+tit edit <commit_hash>
+```
+
+### Export All Sessions to ASCII Table or CSV
+
+```sh
+tit export [ascii|csv] [-a|--all]
+```
+
 ## Example Workflow
 
 1. **Initialize a project:**
@@ -154,5 +183,3 @@ tit delete <project_name>
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
-
-Happy time tracking! ⏱️
