@@ -425,12 +425,22 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
     to_time = None
 
     if from_commit:
+        try:
+            from_commit = resolve_commit_hash(from_commit, committed_data, [])
+        except ValueError as e:
+            print(colored(str(e), 'red'))
+            return
         for commit in committed_data:
             if commit.get('hash') == from_commit:
                 from_time = get_commit_time(commit)
                 break
 
     if to_commit:
+        try:
+            to_commit = resolve_commit_hash(to_commit, committed_data, [])
+        except ValueError as e:
+            print(colored(str(e), 'red'))
+            return
         for commit in committed_data:
             if commit.get('hash') == to_commit:
                 to_time = get_commit_time(commit)
@@ -467,10 +477,10 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
 
         if len(sessions) == 1:
             start = datetime.fromisoformat(sessions[0].get('start'))
-            table_data.append([colored(message,attrs=['bold']), colored(str(commit_duration).split('.')[0],attrs=['bold']), colored(format_display_datetime(start), attrs=['bold'])])
+            table_data.append([colored(message, attrs=['bold']), colored(str(commit_duration).split('.')[0], attrs=['bold']), colored(format_display_datetime(start), attrs=['bold'])])
         else:
             commit_date = format_display_datetime(datetime.now())  # Assuming the commit date is now
-            table_data.append([colored(message,attrs=['bold']), colored(str(commit_duration).split('.')[0],attrs=['bold']), colored(commit_date, attrs=['bold'])])
+            table_data.append([colored(message, attrs=['bold']), colored(str(commit_duration).split('.')[0], attrs=['bold']), colored(commit_date, attrs=['bold'])])
             for i, session in enumerate(sessions, start=1):
                 start = datetime.fromisoformat(session.get('start'))
                 end = datetime.fromisoformat(session.get('end'))
