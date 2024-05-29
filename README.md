@@ -17,13 +17,15 @@
 
 ## To-dos
 
-- [ ] Add message editing to edit command
-- [ ] Add info command for compact info log
+- [x] Add message editing to edit command
 - [x] Add rest command to discard staged commits
 - [x] Add remove command to non-destructively remove commits
 - [x] Add purge command destructively delete commits
 - [x] Add edit command edit commits
 - [x] Add time command to return total project time
+- [ ] Update help command to be more... helpful
+- [ ] Create a demonstration gif
+
 
 ## Installation
 
