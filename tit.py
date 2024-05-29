@@ -37,6 +37,12 @@ def format_datetime(dt):
 def format_display_datetime(dt):
     return dt.strftime('%m/%d %I:%M %p')
 
+def format_display_datetime_with_seconds(dt):
+    return dt.strftime('%Y-%m-%d %I:%M:%S %p')
+
+def parse_display_datetime_with_seconds(dt_str):
+    return datetime.strptime(dt_str, '%Y-%m-%d %I:%M:%S %p')
+
 def generate_commit_hash(sessions):
     sessions_str = json.dumps(sessions, sort_keys=True)
     return hashlib.sha1(sessions_str.encode()).hexdigest()
@@ -601,8 +607,12 @@ def edit_commit(commit_hash):
             start = datetime.fromisoformat(session["start"])
             end = datetime.fromisoformat(session["end"])
             temp_file.write(f"[Session {i}]\n")
-            temp_file.write(f"Start-Time: {format_display_datetime(start)}\n")
-            temp_file.write(f"End-Time: {format_display_datetime(end)}\n\n")
+            temp_file.write(f"Start-Time: {format_display_datetime_with_seconds(start)}\n")
+            temp_file.write(f"End-Time: {format_display_datetime_with_seconds(end)}\n\n")
+
+    # Read the original content before opening the editor
+    with open(temp_file_path, 'r') as temp_file:
+        original_content = temp_file.read()
 
     # Find an available text editor
     try:
@@ -618,6 +628,12 @@ def edit_commit(commit_hash):
     with open(temp_file_path, 'r') as temp_file:
         edited_content = temp_file.read()
 
+    # Check if the content has changed
+    if edited_content == original_content:
+        print(colored("No changes made to the commit.", 'yellow'))
+        os.remove(temp_file_path)
+        return
+
     # Parse the edited content
     edited_sessions = []
     lines = edited_content.splitlines()
@@ -627,8 +643,8 @@ def edit_commit(commit_hash):
             start_line = lines[i + 1].split("Start-Time: ")[1].strip()
             end_line = lines[i + 2].split("End-Time: ")[1].strip()
             edited_sessions.append({
-                "start": parse_display_datetime(start_line).isoformat(),
-                "end": parse_display_datetime(end_line).isoformat()
+                "start": parse_display_datetime_with_seconds(start_line).isoformat(),
+                "end": parse_display_datetime_with_seconds(end_line).isoformat()
             })
     except (IndexError, ValueError) as e:
         print(colored("Error: Failed to parse the edited file. Please ensure the format is correct.", 'red'))
