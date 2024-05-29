@@ -589,12 +589,14 @@ def edit_commit(commit_hash):
         return
 
     sessions = commit_data["sessions"]
+    current_message = commit_data.get("message", "")
 
     # Create a temporary file
     with tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix=".tmp") as temp_file:
         temp_file_path = temp_file.name
 
-        # Write the sessions to the temporary file
+        # Write the commit message and sessions to the temporary file
+        temp_file.write(f"Commit Message: {current_message}\n\n")
         for i, session in enumerate(sessions, start=1):
             start = datetime.fromisoformat(session["start"])
             end = datetime.fromisoformat(session["end"])
@@ -620,7 +622,8 @@ def edit_commit(commit_hash):
     edited_sessions = []
     lines = edited_content.splitlines()
     try:
-        for i in range(0, len(lines), 4):
+        new_message = lines[0].split("Commit Message: ")[1].strip()
+        for i in range(2, len(lines), 4):
             start_line = lines[i + 1].split("Start-Time: ")[1].strip()
             end_line = lines[i + 2].split("End-Time: ")[1].strip()
             edited_sessions.append({
@@ -639,6 +642,8 @@ def edit_commit(commit_hash):
     else:
         # Update the commit data
         commit_data["sessions"] = edited_sessions
+        commit_data["message"] = new_message
+        commit_data["hash"] = generate_commit_hash(edited_sessions)  # Re-hash the commit
         print(colored(f"Commit '{full_hash}' has been edited.", 'green'))
 
     # Save the updated data
