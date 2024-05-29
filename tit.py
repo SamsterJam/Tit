@@ -217,7 +217,7 @@ def reset_sessions():
     save_data([], uncommitted_file)
     print(colored("Uncommitted sessions have been discarded.", 'green'))
 
-def log_sessions(show_all=False):
+def log_sessions(show_all=False, verbose=False):
     project = get_current_project()
     if not project:
         print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
@@ -232,20 +232,33 @@ def log_sessions(show_all=False):
     for commit in committed_data:
         commit_hash = commit.get('hash')
         message = commit.get('message', '')
-        print(colored(f"commit {commit_hash}", 'yellow', attrs=['bold']))
-        print(f"Date: {datetime.now().strftime('%a %b %d %H:%M:%S %Y %z')}\n")
-        print(colored(f"    {message}", 'green'))
-        sessions = commit.get('sessions', [])
-        print(f"    Sessions ({len(sessions)}):")
-        for session in sessions:
-            start = session.get('start')
-            end = session.get('end')
-            start_time = datetime.fromisoformat(start)
-            end_time = datetime.fromisoformat(end)
-            duration = end_time - start_time
-            duration_str = str(duration).split('.')[0]  # Remove microseconds
-            print(f"      - Start: {format_display_datetime(start_time)}, Duration: {colored(duration_str, attrs=['bold'])}")
-        print()
+        if verbose:
+            print(colored(f"commit {commit_hash}", 'yellow', attrs=['bold']))
+            print(f"Date: {datetime.now().strftime('%a %b %d %H:%M:%S %Y %z')}\n")
+            print(colored(f"    {message}", 'green'))
+            sessions = commit.get('sessions', [])
+            print(f"    Sessions ({len(sessions)}):")
+            for session in sessions:
+                start = session.get('start')
+                end = session.get('end')
+                start_time = datetime.fromisoformat(start)
+                end_time = datetime.fromisoformat(end)
+                duration = end_time - start_time
+                duration_str = str(duration).split('.')[0]  # Remove microseconds
+                print(f"      - Start: {format_display_datetime(start_time)}, Duration: {colored(duration_str, attrs=['bold'])}")
+            print()
+        else:
+            print(f"[{colored(commit_hash[:7], 'yellow')}] {colored(message, 'green', attrs=['bold'])}")
+            sessions = commit.get('sessions', [])
+            for session in sessions:
+                start = session.get('start')
+                end = session.get('end')
+                start_time = datetime.fromisoformat(start)
+                end_time = datetime.fromisoformat(end)
+                duration = end_time - start_time
+                duration_str = str(duration).split('.')[0]  # Remove microseconds
+                print(f"└─ {colored(duration_str, 'blue')} | Start: {format_display_datetime(start_time)}")
+            print()
 
     if show_all:
         if uncommitted_data:
@@ -680,6 +693,7 @@ def main():
 
     log_parser = subparsers.add_parser('log', help='Show log of all sessions', aliases=['l'])
     log_parser.add_argument('-a', '--all', action='store_true', help='Show all sessions including uncommitted ones')
+    log_parser.add_argument('-v', '--verbose', action='store_true', help='Show verbose log')
 
     time_parser = subparsers.add_parser('time', help='Show total time from all committed, non-deleted commits')
 
@@ -726,7 +740,7 @@ def main():
             return
         commit_session(commit_message)
     elif args.command in ['log', 'l']:
-        log_sessions(args.all)
+        log_sessions(args.all, args.verbose)
     elif args.command == 'status':
         status()
     elif args.command == 'time':
