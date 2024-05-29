@@ -364,7 +364,7 @@ def remove_commit(commit_hash):
     save_data(deleted_data, deleted_file)
     print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
 
-def export_sessions(show_all=False, format='ascii'):
+def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=None):
     project = get_current_project()
     if not project:
         print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
@@ -376,6 +376,45 @@ def export_sessions(show_all=False, format='ascii'):
 
     table_data = []
     total_duration = timedelta()
+
+    # Helper function to get the commit time from the first session's start time
+    def get_commit_time(commit):
+        if commit['sessions']:
+            return datetime.fromisoformat(commit['sessions'][0]['start'])
+        return None
+
+    # Get the times for from_commit and to_commit
+    from_time = None
+    to_time = None
+
+    if from_commit:
+        for commit in committed_data:
+            if commit.get('hash') == from_commit:
+                from_time = get_commit_time(commit)
+                break
+
+    if to_commit:
+        for commit in committed_data:
+            if commit.get('hash') == to_commit:
+                to_time = get_commit_time(commit)
+                break
+
+    # Filter commits based on from_time and to_time
+    if from_time or to_time:
+        filtered_committed_data = []
+        for commit in committed_data:
+            commit_time = get_commit_time(commit)
+            if commit_time:
+                if from_time and to_time:
+                    if from_time <= commit_time <= to_time:
+                        filtered_committed_data.append(commit)
+                elif from_time:
+                    if commit_time >= from_time:
+                        filtered_committed_data.append(commit)
+                elif to_time:
+                    if commit_time <= to_time:
+                        filtered_committed_data.append(commit)
+        committed_data = filtered_committed_data
 
     for commit in committed_data:
         sessions = commit.get('sessions', [])
@@ -661,6 +700,8 @@ def main():
 
     export_parser = subparsers.add_parser('export', help='Export all sessions to a nice ASCII table or CSV')
     export_parser.add_argument('-a', '--all', action='store_true', help='Export all sessions including uncommitted ones')
+    export_parser.add_argument('--from', dest='from_commit', help='Export sessions from this commit hash')
+    export_parser.add_argument('--to', dest='to_commit', help='Export sessions up to this commit hash')
     export_parser.add_argument('format', nargs='?', default='ascii', choices=['ascii', 'csv'], help='Export format (default: ascii)')
 
     rm_parser = subparsers.add_parser('rm', help='Remove a specific commit')
@@ -707,7 +748,7 @@ def main():
     elif args.command == 'edit':
         edit_commit(args.commit_hash)
     elif args.command == 'export':
-        export_sessions(args.all, args.format)
+        export_sessions(args.all, args.format, args.from_commit, args.to_commit)
     else:
         parser.print_help()
 
