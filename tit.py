@@ -79,6 +79,18 @@ def find_editor():
             return editor
     raise FileNotFoundError("No suitable text editor found. Please install one of the following: vim, nano, code, notepad.")
 
+def resolve_commit_hash(partial_hash, committed_data, deleted_data):
+    matches = []
+    for commit in committed_data + deleted_data:
+        if commit.get('hash').startswith(partial_hash):
+            matches.append(commit.get('hash'))
+    if len(matches) == 1:
+        return matches[0]
+    elif len(matches) > 1:
+        raise ValueError(f"Error: Ambiguous hash '{partial_hash}' matches multiple commits.")
+    else:
+        raise ValueError(f"Error: No commit found with hash starting with '{partial_hash}'.")
+
 def start_session():
     project = get_current_project()
     if not project:
@@ -354,20 +366,26 @@ def remove_commit(commit_hash):
     committed_data = load_data(committed_file)
     deleted_data = load_data(deleted_file)
 
+    try:
+        full_hash = resolve_commit_hash(commit_hash, committed_data, deleted_data)
+    except ValueError as e:
+        print(colored(str(e), 'red'))
+        return
+
     commit_to_remove = None
     for commit in committed_data:
-        if commit.get('hash') == commit_hash:
+        if commit.get('hash') == full_hash:
             commit_to_remove = commit
             break
 
     if not commit_to_remove:
         # Check if the commit is already in the deleted sessions
         for commit in deleted_data:
-            if commit.get('hash') == commit_hash:
-                purge_commit(commit_hash)
+            if commit.get('hash') == full_hash:
+                purge_commit(full_hash)
                 return
 
-        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        print(colored(f"Error: Commit with hash '{full_hash}' not found.", 'red'))
         return
 
     # Move the commit to deleted sessions
@@ -375,7 +393,7 @@ def remove_commit(commit_hash):
     deleted_data.append(commit_to_remove)
     save_data(committed_data, committed_file)
     save_data(deleted_data, deleted_file)
-    print(colored(f"Commit '{commit_hash}' has been removed.", 'green'))
+    print(colored(f"Commit '{full_hash}' has been removed.", 'green'))
 
 def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=None):
     project = get_current_project()
@@ -498,12 +516,18 @@ def purge_commit(commit_hash):
     uncommitted_data = load_data(uncommitted_file)
     deleted_data = load_data(deleted_file)
 
+    try:
+        full_hash = resolve_commit_hash(commit_hash, committed_data, deleted_data)
+    except ValueError as e:
+        print(colored(str(e), 'red'))
+        return
+
     commit_to_purge = None
     source = None
 
     # Check in committed sessions
     for commit in committed_data:
-        if commit.get('hash') == commit_hash:
+        if commit.get('hash') == full_hash:
             commit_to_purge = commit
             source = 'committed'
             break
@@ -511,17 +535,17 @@ def purge_commit(commit_hash):
     # Check in deleted sessions
     if not commit_to_purge:
         for commit in deleted_data:
-            if commit.get('hash') == commit_hash:
+            if commit.get('hash') == full_hash:
                 commit_to_purge = commit
                 source = 'deleted'
                 break
 
     if not commit_to_purge:
-        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        print(colored(f"Error: Commit with hash '{full_hash}' not found.", 'red'))
         return
 
     # Prompt for confirmation
-    confirm = input(colored(f"Are you sure you want to permanently delete commit '{commit_hash}'? This action cannot be undone. [y/N]: ", 'yellow')).strip().lower()
+    confirm = input(colored(f"Are you sure you want to permanently delete commit '{full_hash}'? This action cannot be undone. [y/N]: ", 'yellow')).strip().lower()
     if confirm not in ['y', 'yes']:
         print(colored("Purge aborted.", 'green'))
         return
@@ -537,7 +561,7 @@ def purge_commit(commit_hash):
         deleted_data.remove(commit_to_purge)
         save_data(deleted_data, deleted_file)
 
-    print(colored(f"Commit '{commit_hash}' has been permanently deleted.", 'green'))
+    print(colored(f"Commit '{full_hash}' has been permanently deleted.", 'green'))
 
 def edit_commit(commit_hash):
     project = get_current_project()
@@ -548,14 +572,20 @@ def edit_commit(commit_hash):
     committed_file, _ = get_project_paths(project)
     committed_data = load_data(committed_file)
 
+    try:
+        full_hash = resolve_commit_hash(commit_hash, committed_data, [])
+    except ValueError as e:
+        print(colored(str(e), 'red'))
+        return
+
     commit_data = None
     for commit in committed_data:
-        if commit.get('hash') == commit_hash:
+        if commit.get('hash') == full_hash:
             commit_data = commit
             break
 
     if not commit_data:
-        print(colored(f"Error: Commit with hash '{commit_hash}' not found.", 'red'))
+        print(colored(f"Error: Commit with hash '{full_hash}' not found.", 'red'))
         return
 
     sessions = commit_data["sessions"]
@@ -605,11 +635,11 @@ def edit_commit(commit_hash):
     # Check if there are no sessions left
     if not edited_sessions:
         committed_data.remove(commit_data)
-        print(colored(f"Commit '{commit_hash}' has been deleted because no sessions were left.", 'yellow'))
+        print(colored(f"Commit '{full_hash}' has been deleted because no sessions were left.", 'yellow'))
     else:
         # Update the commit data
         commit_data["sessions"] = edited_sessions
-        print(colored(f"Commit '{commit_hash}' has been edited.", 'green'))
+        print(colored(f"Commit '{full_hash}' has been edited.", 'green'))
 
     # Save the updated data
     save_data(committed_data, committed_file)
