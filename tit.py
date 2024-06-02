@@ -124,8 +124,13 @@ def stop_session():
         print(colored("Error: No session in progress.", 'red'))
         return
     data[-1]['end'] = format_datetime(datetime.now())
+    start_time = datetime.fromisoformat(data[-1]['start'])
+    end_time = datetime.fromisoformat(data[-1]['end'])
+    duration = end_time - start_time
+    message = f"Session stopped. Duration: {str(duration).split('.')[0]}"
+    data[-1]['message'] = message
     save_data(data, uncommitted_file)
-    print(colored("Session stopped.", 'green'))
+    print(colored(message, 'green'))
 
 def commit_session(message):
     project = get_current_project()
@@ -738,6 +743,45 @@ def checkout_project(project):
     set_current_project(project)
     print(colored(f"Switched to project '{project}'", 'green'))
 
+def show_today_time():
+    project = get_current_project()
+    if not project:
+        print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
+        return
+
+    committed_file, uncommitted_file = get_project_paths(project)
+    deleted_file = get_deleted_sessions_file(project)
+    committed_data = load_data(committed_file)
+    uncommitted_data = load_data(uncommitted_file)
+    deleted_data = load_data(deleted_file)
+
+    today = datetime.now().date()
+    total_today_duration = timedelta()
+
+    for commit in committed_data:
+        if commit in deleted_data:
+            continue
+        sessions = commit.get('sessions', [])
+        for session in sessions:
+            start = datetime.fromisoformat(session.get('start'))
+            end = datetime.fromisoformat(session.get('end'))
+            if start.date() == today:
+                total_today_duration += (end - start)
+
+    for session in uncommitted_data:
+        start = datetime.fromisoformat(session.get('start'))
+        end = session.get('end')
+        if end is None or end == 'In Progress':
+            end = datetime.now()
+        else:
+            end = datetime.fromisoformat(end)
+        if start.date() == today:
+            total_today_duration += (end - start)
+
+    total_today_duration_str = str(total_today_duration).split('.')[0]  # Remove microseconds
+
+    print(colored(f"Today's Total: {total_today_duration_str}", 'blue', attrs=['bold']))
+
 def main():
     parser = argparse.ArgumentParser(
         description="Time Tracker CLI - A simple tool to track and manage your project time sessions.",
@@ -788,6 +832,8 @@ def main():
     edit_parser = subparsers.add_parser('edit', help='Edit a specific commit')
     edit_parser.add_argument('commit_hash', help='Hash of the commit to edit')
 
+    subparsers.add_parser('today', help='Show total time for today')
+
     args = parser.parse_args()
 
     if args.command in ['start', 's']:
@@ -824,6 +870,8 @@ def main():
         edit_commit(args.commit_hash)
     elif args.command == 'export':
         export_sessions(args.all, args.format, args.from_commit, args.to_commit)
+    elif args.command == 'today':
+        show_today_time()
     else:
         parser.print_help()
 
