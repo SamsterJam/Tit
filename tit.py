@@ -40,6 +40,12 @@ def format_display_datetime(dt):
 def format_display_datetime_with_seconds(dt):
     return dt.strftime('%Y-%m-%d %I:%M:%S %p')
 
+def format_timedelta(td):
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
 def parse_display_datetime_with_seconds(dt_str):
     return datetime.strptime(dt_str, '%Y-%m-%d %I:%M:%S %p')
 
@@ -482,15 +488,15 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
 
         if len(sessions) == 1:
             start = datetime.fromisoformat(sessions[0].get('start'))
-            table_data.append([colored(message, attrs=['bold']), colored(str(commit_duration).split('.')[0], attrs=['bold']), colored(format_display_datetime(start), attrs=['bold'])])
+            table_data.append([colored(message, attrs=['bold']), colored(format_timedelta(commit_duration), attrs=['bold']), colored(format_display_datetime(start), attrs=['bold'])])
         else:
             commit_date = format_display_datetime(datetime.now())  # Assuming the commit date is now
-            table_data.append([colored(message, attrs=['bold']), colored(str(commit_duration).split('.')[0], attrs=['bold']), colored(commit_date, attrs=['bold'])])
+            table_data.append([colored(message, attrs=['bold']), colored(format_timedelta(commit_duration), attrs=['bold']), colored(commit_date, attrs=['bold'])])
             for i, session in enumerate(sessions, start=1):
                 start = datetime.fromisoformat(session.get('start'))
                 end = datetime.fromisoformat(session.get('end'))
                 duration = end - start
-                table_data.append([f"└── (Session {i})", str(duration).split('.')[0], format_display_datetime(start)])
+                table_data.append([f"└── (Session {i})", format_timedelta(duration), format_display_datetime(start)])
 
     if show_all:
         for session in uncommitted_data:
@@ -502,10 +508,10 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
                 end = datetime.fromisoformat(end)
             duration = end - start
             total_duration += duration
-            table_data.append([colored("Uncommitted", 'yellow'), colored(str(duration).split('.')[0], 'yellow'), colored(format_display_datetime(start), 'yellow')])
+            table_data.append([colored("Uncommitted", 'yellow'), colored(format_timedelta(duration), 'yellow'), colored(format_display_datetime(start), 'yellow')])
 
     # Add total row
-    total_duration_str = str(total_duration).split('.')[0]  # Remove microseconds
+    total_duration_str = format_timedelta(total_duration)  # Use the new helper function
     export_time = format_display_datetime(datetime.now())
     table_data.append([colored("Total", 'green', attrs=['bold']), colored(total_duration_str, 'green', attrs=['bold']), colored(export_time, 'green', attrs=['bold'])])
 
