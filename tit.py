@@ -412,7 +412,7 @@ def remove_commit(commit_hash):
     save_data(deleted_data, deleted_file)
     print(colored(f"Commit '{full_hash}' has been removed.", 'green'))
 
-def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=None):
+def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=None, verbose=False):
     project = get_current_project()
     if not project:
         print(colored("Error: No project selected. Use 'tit init <project>' to create a project or 'tit checkout <project>' to switch to a project.", 'red'))
@@ -492,11 +492,13 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
         else:
             commit_date = format_display_datetime(datetime.now())  # Assuming the commit date is now
             table_data.append([colored(message, attrs=['bold']), colored(format_timedelta(commit_duration), attrs=['bold']), colored(commit_date, attrs=['bold'])])
-            for i, session in enumerate(sessions, start=1):
-                start = datetime.fromisoformat(session.get('start'))
-                end = datetime.fromisoformat(session.get('end'))
-                duration = end - start
-                table_data.append([f"└── (Session {i})", format_timedelta(duration), format_display_datetime(start)])
+            # Only show individual sessions if verbose flag is set
+            if verbose:
+                for i, session in enumerate(sessions, start=1):
+                    start = datetime.fromisoformat(session.get('start'))
+                    end = datetime.fromisoformat(session.get('end'))
+                    duration = end - start
+                    table_data.append([f"└── (Session {i})", format_timedelta(duration), format_display_datetime(start)])
 
     if show_all:
         for session in uncommitted_data:
@@ -825,6 +827,7 @@ def main():
 
     export_parser = subparsers.add_parser('export', help='Export all sessions to a nice ASCII table or CSV')
     export_parser.add_argument('-a', '--all', action='store_true', help='Export all sessions including uncommitted ones')
+    export_parser.add_argument('-v', '--verbose', action='store_true', help='Show individual sessions within commits')
     export_parser.add_argument('--from', dest='from_commit', help='Export sessions from this commit hash')
     export_parser.add_argument('--to', dest='to_commit', help='Export sessions up to this commit hash')
     export_parser.add_argument('format', nargs='?', default='ascii', choices=['ascii', 'csv'], help='Export format (default: ascii)')
@@ -875,7 +878,7 @@ def main():
     elif args.command == 'edit':
         edit_commit(args.commit_hash)
     elif args.command == 'export':
-        export_sessions(args.all, args.format, args.from_commit, args.to_commit)
+        export_sessions(args.all, args.format, args.from_commit, args.to_commit, args.verbose)
     elif args.command == 'today':
         show_today_time()
     else:
