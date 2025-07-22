@@ -490,7 +490,8 @@ def export_sessions(show_all=False, format='ascii', from_commit=None, to_commit=
             start = datetime.fromisoformat(sessions[0].get('start'))
             table_data.append([colored(message, attrs=['bold']), colored(format_timedelta(commit_duration), attrs=['bold']), colored(format_display_datetime(start), attrs=['bold'])])
         else:
-            commit_date = format_display_datetime(datetime.now())  # Assuming the commit date is now
+            commit_time = get_commit_time(commit)
+            commit_date = format_display_datetime(commit_time) if commit_time else "Unknown"
             table_data.append([colored(message, attrs=['bold']), colored(format_timedelta(commit_duration), attrs=['bold']), colored(commit_date, attrs=['bold'])])
             # Only show individual sessions if verbose flag is set
             if verbose:
