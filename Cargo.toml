@@ -1,0 +1,28 @@
+[package]
+name = "tit"
+version = "1.0.0"
+edition = "2024"
+description = "A git-inspired command-line time tracker"
+authors = ["SamsterJam"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/SamsterJam/Tit"
+readme = "README.md"
+keywords = ["time-tracking", "cli", "productivity"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1.0.102"
+chrono = "0.4.44"
+clap = { version = "4.6.1", features = ["derive"] }
+comfy-table = "7.2.2"
+csv = "1.4.0"
+owo-colors = "4.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+sha1 = "0.11.0"
+toml = "1.1.2"
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+tempfile = "3.27.0"
