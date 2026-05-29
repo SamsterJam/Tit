@@ -16,7 +16,7 @@ single static binary with no runtime dependencies.
 
 ```sh
 cargo build --release
-install -Dm755 target/release/tit ~/.local/bin/tit   # ensure ~/.local/bin is on $PATH
+sudo mv target/release/tit /usr/local/bin/.
 ```
 
 ## Data & compatibility
