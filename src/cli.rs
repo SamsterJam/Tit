@@ -38,6 +38,12 @@ pub enum Command {
         /// Show verbose, git-style output
         #[arg(short, long)]
         verbose: bool,
+        /// Show commits from this commit hash onward
+        #[arg(long = "from")]
+        from_commit: Option<String>,
+        /// Show commits up to this commit hash
+        #[arg(long = "to")]
+        to_commit: Option<String>,
     },
 
     /// Show total time from all committed, non-deleted commits

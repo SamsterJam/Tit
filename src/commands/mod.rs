@@ -21,7 +21,18 @@ pub fn dispatch(store: &Store, command: Command) -> Result<(), TitError> {
             }
             commit::commit(store, &msg)
         }
-        Command::Log { all, verbose } => commit::log(store, all, verbose),
+        Command::Log {
+            all,
+            verbose,
+            from_commit,
+            to_commit,
+        } => commit::log(
+            store,
+            all,
+            verbose,
+            from_commit.as_deref(),
+            to_commit.as_deref(),
+        ),
         Command::Rm { commit_hash } => commit::rm(store, &commit_hash),
         Command::Purge { commit_hash } => commit::purge(store, &commit_hash),
         Command::Edit { commit_hash } => commit::edit(store, &commit_hash),

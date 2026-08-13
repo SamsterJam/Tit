@@ -47,7 +47,7 @@ different location (handy for scripts and tests).
 | `tit status` | | Show current session / uncommitted state |
 | `tit reset` | | Discard uncommitted sessions (confirms) |
 | `tit commit -m <msg>` | `c` | Commit uncommitted sessions |
-| `tit log [-a] [-v]` | `l` | Show commit log (`-a` all, `-v` verbose) |
+| `tit log [-a] [-v] [--from <h>] [--to <h>]` | `l` | Show commit log (`-a` all, `-v` verbose) |
 | `tit time` | | Total committed time |
 | `tit today` | | Total time tracked today |
 | `tit export [-a] [-v] [--from <h>] [--to <h>] [ascii\|csv]` | | Export a summary |

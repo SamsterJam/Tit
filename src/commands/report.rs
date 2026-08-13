@@ -106,12 +106,15 @@ pub fn export(
     let project = store.require_project()?;
     let now = timefmt::now();
 
-    let commits = filter_commits(&project, from_commit, to_commit)?;
+    let range = CommitRange::resolve(&[&project.committed], from_commit, to_commit)?;
 
     let mut rows: Vec<(RowStyle, [String; 3])> = Vec::new();
     let mut total = Duration::zero();
 
-    for commit in commits {
+    for commit in &project.committed {
+        if !range.contains_commit(commit)? {
+            continue;
+        }
         let duration = commit.duration(now)?;
         total += duration;
 
@@ -178,46 +181,52 @@ pub fn export(
     Ok(())
 }
 
-/// Apply `--from` / `--to` filtering by commit time (first session start).
-fn filter_commits<'a>(
-    project: &'a Project,
-    from_commit: Option<&str>,
-    to_commit: Option<&str>,
-) -> Result<Vec<&'a Commit>, TitError> {
-    let bound = |hash: Option<&str>| -> Result<Option<NaiveDateTime>, TitError> {
-        match hash {
-            None => Ok(None),
-            Some(h) => {
-                let full = crate::model::resolve_hash(h, &[&project.committed])?;
-                let commit = project
-                    .committed
-                    .iter()
-                    .find(|c| c.hash == full)
-                    .ok_or_else(|| TitError::CommitNotFound(full.clone()))?;
-                commit.commit_time()
-            }
-        }
-    };
+/// A `--from` / `--to` window, resolved to commit times.
+pub(super) struct CommitRange {
+    from: Option<NaiveDateTime>,
+    to: Option<NaiveDateTime>,
+}
 
-    let from_time = bound(from_commit)?;
-    let to_time = bound(to_commit)?;
-
-    let mut out = Vec::new();
-    for commit in &project.committed {
-        if from_time.is_none() && to_time.is_none() {
-            out.push(commit);
-            continue;
-        }
-        let Some(t) = commit.commit_time()? else {
-            continue;
+impl CommitRange {
+    pub(super) fn resolve(
+        pools: &[&[Commit]],
+        from_commit: Option<&str>,
+        to_commit: Option<&str>,
+    ) -> Result<Self, TitError> {
+        let bound = |hash: Option<&str>| -> Result<Option<NaiveDateTime>, TitError> {
+            let Some(h) = hash else {
+                return Ok(None);
+            };
+            let full = crate::model::resolve_hash(h, pools)?;
+            let commit = pools
+                .iter()
+                .flat_map(|pool| pool.iter())
+                .find(|c| c.hash == full)
+                .ok_or_else(|| TitError::CommitNotFound(full.clone()))?;
+            commit.commit_time()
         };
-        let after = from_time.is_none_or(|f| t >= f);
-        let before = to_time.is_none_or(|to| t <= to);
-        if after && before {
-            out.push(commit);
-        }
+
+        Ok(CommitRange {
+            from: bound(from_commit)?,
+            to: bound(to_commit)?,
+        })
     }
-    Ok(out)
+
+    fn is_unbounded(&self) -> bool {
+        self.from.is_none() && self.to.is_none()
+    }
+
+    pub(super) fn contains(&self, time: NaiveDateTime) -> bool {
+        self.from.is_none_or(|f| time >= f) && self.to.is_none_or(|t| time <= t)
+    }
+
+    /// A commit with no sessions has no time, so it survives only an unbounded range.
+    pub(super) fn contains_commit(&self, commit: &Commit) -> Result<bool, TitError> {
+        if self.is_unbounded() {
+            return Ok(true);
+        }
+        Ok(commit.commit_time()?.is_some_and(|t| self.contains(t)))
+    }
 }
 
 /// How a table row is styled, mirroring the original tool.

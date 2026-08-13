@@ -182,6 +182,56 @@ fn reads_legacy_in_progress_sentinel() {
         .stdout(predicate::str::contains("Session in progress"));
 }
 
+#[test]
+fn log_from_and_to_bound_the_range() {
+    let tit = Tit::new();
+    let dir = tit.data.join("projects").join("r");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(tit.data.join("HEAD"), "r").unwrap();
+
+    let commit = |day: u32, message: &str, hash: &str| {
+        format!(
+            r#"{{"sessions": [{{"start": "2024-05-0{day}T10:00:00", "end": "2024-05-0{day}T11:00:00"}}],
+                "message": "{message}", "hash": "{hash}"}}"#
+        )
+    };
+    let committed = format!(
+        "[{}, {}, {}]",
+        commit(1, "first", "aaaaaaa1111111111111111111111111111111111"),
+        commit(2, "second", "bbbbbbb2222222222222222222222222222222222"),
+        commit(3, "third", "ccccccc3333333333333333333333333333333333"),
+    );
+    std::fs::write(dir.join("committed_sessions.json"), committed).unwrap();
+
+    tit.run(&["log", "--from", "bbbbbbb"])
+        .success()
+        .stdout(
+            predicate::str::contains("first")
+                .not()
+                .and(predicate::str::contains("second"))
+                .and(predicate::str::contains("third")),
+        );
+
+    tit.run(&["log", "--to", "bbbbbbb"]).success().stdout(
+        predicate::str::contains("first")
+            .and(predicate::str::contains("second"))
+            .and(predicate::str::contains("third").not()),
+    );
+
+    // Both bounds are inclusive, so a single commit can be isolated.
+    tit.run(&["l", "-v", "--from", "bbbbbbb", "--to", "bbbbbbb"])
+        .success()
+        .stdout(
+            predicate::str::contains("second")
+                .and(predicate::str::contains("first").not())
+                .and(predicate::str::contains("third").not()),
+        );
+
+    tit.run(&["log", "--from", "nope"])
+        .failure()
+        .stderr(predicate::str::contains("No commit found"));
+}
+
 /// Sanity: the binary parses a fixture mirroring the real on-disk shape.
 #[test]
 fn parses_realistic_committed_fixture() {

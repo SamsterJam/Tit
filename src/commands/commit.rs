@@ -6,6 +6,7 @@ use std::process::Command;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
+use crate::commands::report::CommitRange;
 use crate::error::TitError;
 use crate::model::{self, Commit, Session};
 use crate::store::{Project, Store};
@@ -36,11 +37,27 @@ pub fn commit(store: &Store, message: &str) -> Result<(), TitError> {
     Ok(())
 }
 
-pub fn log(store: &Store, all: bool, verbose: bool) -> Result<(), TitError> {
+pub fn log(
+    store: &Store,
+    all: bool,
+    verbose: bool,
+    from_commit: Option<&str>,
+    to_commit: Option<&str>,
+) -> Result<(), TitError> {
     let project = store.require_project()?;
     let now = timefmt::now();
 
+    let pools: Vec<&[Commit]> = if all {
+        vec![&project.committed, &project.deleted]
+    } else {
+        vec![&project.committed]
+    };
+    let range = CommitRange::resolve(&pools, from_commit, to_commit)?;
+
     for commit in &project.committed {
+        if !range.contains_commit(commit)? {
+            continue;
+        }
         if verbose {
             print_verbose_commit(commit, now)?;
         } else {
@@ -49,9 +66,16 @@ pub fn log(store: &Store, all: bool, verbose: bool) -> Result<(), TitError> {
     }
 
     if all {
-        if !project.uncommitted.is_empty() {
+        let mut uncommitted: Vec<&Session> = Vec::new();
+        for session in &project.uncommitted {
+            if range.contains(session.start_dt()?) {
+                uncommitted.push(session);
+            }
+        }
+
+        if !uncommitted.is_empty() {
             println!("Uncommitted Sessions:");
-            for session in &project.uncommitted {
+            for session in uncommitted {
                 let line = format!(
                     "  - Start: {}, Duration: {}",
                     timefmt::display(session.start_dt()?),
@@ -60,9 +84,17 @@ pub fn log(store: &Store, all: bool, verbose: bool) -> Result<(), TitError> {
                 println!("{}", line.red());
             }
         }
-        if !project.deleted.is_empty() {
+
+        let mut deleted: Vec<&Commit> = Vec::new();
+        for commit in &project.deleted {
+            if range.contains_commit(commit)? {
+                deleted.push(commit);
+            }
+        }
+
+        if !deleted.is_empty() {
             println!("Deleted Sessions:");
-            for commit in &project.deleted {
+            for commit in deleted {
                 print_deleted_commit(commit, now)?;
             }
         }
